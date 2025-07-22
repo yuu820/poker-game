@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Poker - リアルタイム対戦</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            color: #fff;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-bottom: 2rem;
+        }
+        
+        .login-form {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            min-width: 300px;
+        }
+        
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #ffd700;
+        }
+        
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 1rem;
+        }
+        
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            color: #333;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .game-screen {
+            display: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .chips {
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            color: #333;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .game-table {
+            background: linear-gradient(135deg, #0d5b2c, #1a4c30);
+            border-radius: 50%;
+            width: 800px;
+            height: 400px;
+            margin: 0 auto;
+            position: relative;
+            border: 8px solid #8b4513;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.3);
+        }
+        
+        .player-seat {
+            position: absolute;
+            width: 120px;
+            height: 80px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 10px;
+            padding: 0.5rem;
+            text-align: center;
+            border: 2px solid #ffd700;
+            transition: all 0.3s;
+        }
+        
+        .player-seat.active {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 20px rgba(255,107,107,0.5);
+        }
+        
+        .player-seat:nth-child(1) { top: -50px; left: 50%; transform: translateX(-50%); }
+        .player-seat:nth-child(2) { top: 20px; right: -60px; }
+        .player-seat:nth-child(3) { bottom: 20px; right: -60px; }
+        .player-seat:nth-child(4) { bottom: -50px; left: 50%; transform: translateX(-50%); }
+        .player-seat:nth-child(5) { bottom: 20px; left: -60px; }
+        .player-seat:nth-child(6) { top: 20px; left: -60px; }
+        
+        .player-name {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .player-chips {
+            font-size: 0.7rem;
+            color: #fff;
+        }
+        
+        .player-cards {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 2px;
+            justify-content: center;
+        }
+        
+        .card {
+            width: 25px;
+            height: 35px;
+            background: #fff;
+            border-radius: 3px;
+            font-size: 0.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .community-cards {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .community-card {
+            width: 50px;
+            height: 70px;
+            background: #fff;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .pot {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,215,0,0.2);
+            border: 2px solid #ffd700;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            font-weight: bold;
+            color: #ffd700;
+        }
+        
+        .controls {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        
+        .control-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #ff5252);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .control-btn.call {
+            background: linear-gradient(45deg, #4ecdc4, #26a69a);
+        }
+        
+        .control-btn.raise {
+            background: linear-gradient(45deg, #ffd700, #ffb300);
+            color: #333;
+        }
+        
+        .bet-input {
+            width: 100px;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .game-info {
+            margin-top: 2rem;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .room-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .room-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .room-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .room-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .room-info {
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+        
+        .lobby-screen {
+            display: none;
+        }
+        
+        .lobby-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .create-room-btn {
+            margin-bottom: 2rem;
+            background: linear-gradient(45deg, #4ecdc4, #26a69a);
+        }
+        
+        .message {
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .message.success {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+        
+        .message.error {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+        
+        .waiting-screen {
+            display: none;
+            text-align: center;
+            margin-top: 5rem;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,215,0,0.3);
+            border-top: 5px solid #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ログイン画面 -->
+        <div class="login-screen" id="loginScreen">
+            <div class="logo">🎰 CASINO POKER 🎰</div>
+            <div class="login-form">
+                <h2>ログイン / 新規登録</h2>
+                <div class="input-group">
+                    <label for="userId">ユーザーID</label>
+                    <input type="text" id="userId" placeholder="ユーザーIDを入力">
+                </div>
+                <div class="input-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" placeholder="パスワードを入力">
+                </div>
+                <button onclick="login()">ログイン / 登録</button>
+                <div id="loginMessage"></div>
+            </div>
+        </div>
+
+        <!-- ロビー画面 -->
+        <div class="lobby-screen" id="lobbyScreen">
+            <div class="header">
+                <div class="user-info">
+                    <div>Welcome, <span id="currentUser"></span></div>
+                    <div class="chips">💰 <span id="userChips">10000</span> chips</div>
+                </div>
+                <button onclick="logout()">ログアウト</button>
+            </div>
+            
+            <div class="lobby-header">
+                <h1>🎲 POKER LOBBY 🎲</h1>
+                <button class="create-room-btn" onclick="createRoom()">新しいルームを作成</button>
+            </div>
+            
+            <div class="room-list" id="roomList">
+                <!-- ルーム一覧がここに表示される -->
+            </div>
+        </div>
+
+        <!-- 待機画面 -->
+        <div class="waiting-screen" id="waitingScreen">
+            <h2>ゲーム待機中...</h2>
+            <div class="spinner"></div>
+            <p>他のプレイヤーを待っています</p>
+            <p>部屋名: <span id="currentRoom"></span></p>
+            <p>参加者: <span id="playerCount">1</span>/6人</p>
+            <button onclick="leaveRoom()" class="control-btn">ルームから退出</button>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div class="game-screen" id="gameScreen">
+            <div class="header">
+                <div class="user-info">
+                    <div><span id="gameUser"></span></div>
+                    <div class="chips">💰 <span id="gameChips">10000</span> chips</div>
+                </div>
+                <button onclick="leaveGame()">ゲーム終了</button>
+            </div>
+
+            <div class="game-table">
+                <!-- プレイヤー席 -->
+                <div class="player-seat" id="seat1">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+                <div class="player-seat" id="seat2">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+                <div class="player-seat" id="seat3">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+                <div class="player-seat" id="seat4">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+                <div class="player-seat" id="seat5">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+                <div class="player-seat" id="seat6">
+                    <div class="player-name"></div>
+                    <div class="player-chips"></div>
+                    <div class="player-cards"></div>
+                </div>
+
+                <!-- コミュニティカード -->
+                <div class="community-cards" id="communityCards">
+                    <div class="community-card">?</div>
+                    <div class="community-card">?</div>
+                    <div class="community-card">?</div>
+                    <div class="community-card">?</div>
+                    <div class="community-card">?</div>
+                </div>
+
+                <!-- ポット -->
+                <div class="pot">
+                    POT: <span id="potAmount">0</span> chips
+                </div>
+            </div>
+
+            <div class="controls" id="gameControls">
+                <button class="control-btn" onclick="fold()">FOLD</button>
+                <button class="control-btn call" onclick="call()">CALL</button>
+                <button class="control-btn raise" onclick="showRaiseInput()">RAISE</button>
+                <div id="raiseInput" style="display: none;">
+                    <input type="number" class="bet-input" id="raiseAmount" min="1" placeholder="金額">
+                    <button class="control-btn raise" onclick="raise()">確定</button>
+                </div>
+            </div>
+
+            <div class="game-info">
+                <div id="gameStatus">ゲーム開始を待っています...</div>
+                <div id="currentBet">現在のベット: 0 chips</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let ws = null;
+        let currentUser = '';
+        let userChips = 10000;
+        let gameState = null;
+        let currentRoom = '';
+        
+        // データベースのシミュレーション（実際の実装ではサーバーサイドで管理）
+        let users = JSON.parse(localStorage.getItem('pokerUsers') || '{}');
+        let gameHistory = JSON.parse(localStorage.getItem('gameHistory') || '[]');
+        
+        // WebSocketシミュレーション（実際の実装ではWebSocketサーバーを使用）
+        class MockWebSocket {
+            constructor() {
+                this.onopen = null;
+                this.onmessage = null;
+                this.onclose = null;
+                this.rooms = JSON.parse(localStorage.getItem('pokerRooms') || '{}');
+                setTimeout(() => {
+                    if (this.onopen) this.onopen();
+                }, 100);
+            }
+            
+            send(data) {
+                const message = JSON.parse(data);
+                setTimeout(() => {
+                    this.handleMessage(message);
+                }, 100);
+            }
+            
+            handleMessage(message) {
+                switch(message.type) {
+                    case 'createRoom':
+                        this.createRoom(message);
+                        break;
+                    case 'joinRoom':
+                        this.joinRoom(message);
+                        break;
+                    case 'leaveRoom':
+                        this.leaveRoom(message);
+                        break;
+                    case 'getRooms':
+                        this.getRooms();
+                        break;
+                    case 'gameAction':
+                        this.handleGameAction(message);
+                        break;
+                }
+            }
+            
+            createRoom(message) {
+                const roomId = 'room_' + Date.now();
+                this.rooms[roomId] = {
+                    id: roomId,
+                    name: `${message.user}のルーム`,
+                    players: [message.user],
+                    maxPlayers: 6,
+                    gameState: 'waiting'
+                };
+                localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
+                
+                if (this.onmessage) {
+                    this.onmessage({
+                        data: JSON.stringify({
+                            type: 'roomCreated',
+                            roomId: roomId
+                        })
+                    });
+                }
+            }
+            
+            joinRoom(message) {
+                const room = this.rooms[message.roomId];
+                if (room && room.players.length < 6) {
+                    room.players.push(message.user);
+                    localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
+                    
+                    if (this.onmessage) {
+                        this.onmessage({
+                            data: JSON.stringify({
+                                type: 'roomJoined',
+                                room: room
+                            })
+                        });
+                        
+                        // 2人以上でゲーム開始
+                        if (room.players.length >= 2) {
+                            setTimeout(() => {
+                                this.startGame(room);
+                            }, 2000);
+                        }
+                    }
+                }
+            }
+            
+            leaveRoom(message) {
+                const room = this.rooms[message.roomId];
+                if (room) {
+                    room.players = room.players.filter(p => p !== message.user);
+                    if (room.players.length === 0) {
+                        delete this.rooms[message.roomId];
+                    }
+                    localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
+                    
+                    if (this.onmessage) {
+                        this.onmessage({
+                            data: JSON.stringify({
+                                type: 'leftRoom'
+                            })
+                        });
+                    }
+                }
+            }
+            
+            getRooms() {
+                if (this.onmessage) {
+                    this.onmessage({
+                        data: JSON.stringify({
+                            type: 'roomList',
+                            rooms: Object.values(this.rooms)
+                        })
+                    });
+                }
+            }
+            
+            startGame(room) {
+                const gameState = {
+                    phase: 'preflop',
+                    pot: 0,
+                    currentBet: 20,
+                    players: room.players.map((name, index) => ({
+                        name: name,
+                        chips: users[name]?.chips || 10000,
+                        cards: this.dealCards(2),
+                        bet: 0,
+                        folded: false,
+                        position: index
+                    })),
+                    communityCards: [],
+                    currentPlayer: 0,
+                    dealerPosition: 0
+                };
+                
+                // ブラインドベット
+                if (gameState.players.length >= 2) {
+                    gameState.players[1].bet = 10; // スモールブラインド
+                    gameState.players[1].chips -= 10;
+                    gameState.pot += 10;
+                    
+                    if (gameState.players.length > 2) {
+                        gameState.players[2].bet = 20; // ビッグブラインド
+                        gameState.players[2].chips -= 20;
+                    } else {
+                        gameState.players[0].bet = 20; // ヘッズアップ
+                        gameState.players[0].chips -= 20;
+                    }
+                    gameState.pot += 20;
+                }
+                
+                if (this.onmessage) {
+                    this.onmessage({
+                        data: JSON.stringify({
+                            type: 'gameStarted',
+                            gameState: gameState
+                        })
+                    });
+                }
+            }
+            
+            dealCards(count) {
+                const suits = ['♠', '♥', '♦', '♣'];
+                const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+                const cards = [];
+                
+                for (let i = 0; i < count; i++) {
+                    const suit = suits[Math.floor(Math.random() * suits.length)];
+                    const rank = ranks[Math.floor(Math.random() * ranks.length)];
+                    cards.push(`${rank}${suit}`);
+                }
+                
+                return cards;
+            }
+            
+            handleGameAction(message) {
+                // ゲームアクションの処理（簡略化）
+                if (this.onmessage) {
+                    this.onmessage({
+                        data: JSON.stringify({
+                            type: 'gameUpdated',
+                            action: message.action,
+                            user: message.user
+                        })
+                    });
+                }
+            }
+        }
+
+        // ログイン処理
+        function login() {
+            const userId = document.getElementById('userId').value.trim();
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('loginMessage');
+            
+            if (!userId || !password) {
+                showMessage(messageDiv, 'ユーザーIDとパスワードを入力してください', 'error');
+                return;
+            }
+            
+            // 新規ユーザーまたは既存ユーザーのチェック
+            if (!users[userId]) {
+                // 新規登録
+                users[userId] = {
+                    password: password,
+                    chips: 10000,
+                    gamesPlayed: 0,
+                    wins: 0,
+                    losses: 0,
+                    createdAt: new Date().toISOString()
+                };
+                localStorage.setItem('pokerUsers', JSON.stringify(users));
+                showMessage(messageDiv, '新規ユーザーを登録しました！10000チップをプレゼント！', 'success');
+            } else if (users[userId].password !== password) {
+                showMessage(messageDiv, 'パスワードが間違っています', 'error');
+                return;
+            }
+            
+            currentUser = userId;
+            userChips = users[userId].chips;
+            
+            setTimeout(() => {
+                showLobby();
+            }, 1000);
+        }
+        
+        // ロビー画面表示
+        function showLobby() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('lobbyScreen').style.display = 'block';
+            document.getElementById('currentUser').textContent = currentUser;
+            document.getElementById('userChips').textContent = userChips;
+            
+            // WebSocket接続
+            ws = new MockWebSocket();
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+                getRooms();
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket disconnected');
+            };
+        }
+        
+        // WebSocketメッセージハンドリング
+        function handleWebSocketMessage(message) {
+            switch(message.type) {
+                case 'roomList':
+                    displayRooms(message.rooms);
+                    break;
+                case 'roomCreated':
+                    currentRoom = message.roomId;
+                    joinRoom(message.roomId);
+                    break;
+                case 'roomJoined':
+                    showWaitingScreen(message.room);
+                    break;
+                case 'leftRoom':
+                    showLobby();
+                    break;
+                case 'gameStarted':
+                    gameState = message.gameState;
+                    showGameScreen();
+                    break;
+                case 'gameUpdated':
+                    updateGameState(message);
+                    break;
+            }
+        }
+        
+        // ルーム一覧表示
+        function displayRooms(rooms) {
+            const roomList = document.getElementById('roomList');
+            roomList.innerHTML = '';
+            
+            rooms.forEach(room => {
+                const roomCard = document.createElement('div');
+                roomCard.className = 'room-card';
+                roomCard.onclick = () => joinRoom(room.id);
+                
+                roomCard.innerHTML = `
+                    <div class="room-name">${room.name}</div>
+                    <div class="room-info">
+                        プレイヤー: ${room.players.length}/${room.maxPlayers}<br>
+                        状態: ${room.gameState === 'waiting' ? '待機中' : 'ゲーム中'}
+                    </div>
+                `;
+                
+                roomList.appendChild(roomCard);
+            });
+        }
+        
+        // ルーム作成
+        function createRoom() {
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'createRoom',
+                    user: currentUser
+                }));
+            }
+        }
+        
+        // ルーム参加
+        function joinRoom(roomId) {
+            currentRoom = roomId;
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'joinRoom',
+                    roomId: roomId,
+                    user: currentUser
+                }));
+            }
+        }
+        
+        // ルーム取得
+        function getRooms() {
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'getRooms'
+                }));
+            }
+        }
+        
+        // 待機画面表示
+        function showWaitingScreen(room) {
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'block';
+            document.getElementById('currentRoom').textContent = room.name;
+            document.getElementById('playerCount').textContent = room.players.length;
+        }
+        
+        // ゲーム画面表示
+        function showGameScreen() {
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('gameUser').textContent = currentUser;
+            document.getElementById('gameChips').textContent = userChips;
+            
+            updateGameDisplay();
+        }
+        
+        // ゲーム画面更新
+        function updateGameDisplay() {
+            if (!gameState) return;
+            
+            // プレイヤー情報更新
+            gameState.players.forEach((player, index) => {
+                const seat = document.getElementById(`seat${index + 1}`);
+                if (seat) {
+                    seat.querySelector('.player-name').textContent = player.name;
+                    seat.querySelector('.player-chips').textContent = `${player.chips} chips`;
+                    
+                    // カード表示
+                    const cardsDiv = seat.querySelector('.player-cards');
+                    cardsDiv.innerHTML = '';
+                    
+                    if (player.name === currentUser) {
+                        // 自分のカードは表示
+                        player.cards.forEach(card => {
+                            const cardDiv = document.createElement('div');
+                            cardDiv.className = 'card';
+                            cardDiv.textContent = card;
+                            cardsDiv.appendChild(cardDiv);
+                        });
+                    } else {
+                        // 他のプレイヤーのカードは伏せる
+                        for (let i = 0; i < 2; i++) {
+                            const cardDiv = document.createElement('div');
+                            cardDiv.className = 'card';
+                            cardDiv.textContent = '🂠';
+                            cardsDiv.appendChild(cardDiv);
+                        }
+                    }
+                    
+                    // アクティブプレイヤーをハイライト
+                    if (index === gameState.currentPlayer) {
+                        seat.classList.add('active');
+                    } else {
+                        seat.classList.remove('active');
+                    }
+                }
+            });
+            
+            // ポット更新
+            document.getElementById('potAmount').textContent = gameState.pot;
+            
+            // 現在のベット額更新
+            document.getElementById('currentBet').textContent = `現在のベット: ${gameState.currentBet} chips`;
+            
+            // ゲーム状態更新
+            const statusMap = {
+                'preflop': 'プリフロップ',
+                'flop': 'フロップ',
+                'turn': 'ターン',
+                'river': 'リバー',
+                'showdown': 'ショーダウン'
+            };
+            document.getElementById('gameStatus').textContent = 
+                `${statusMap[gameState.phase] || gameState.phase} - ${gameState.players[gameState.currentPlayer]?.name}のターン`;
+            
+            // コミュニティカード更新
+            const communityCardsDiv = document.getElementById('communityCards');
+            communityCardsDiv.innerHTML = '';
+            
+            for (let i = 0; i < 5; i++) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'community-card';
+                
+                if (i < gameState.communityCards.length) {
+                    cardDiv.textContent = gameState.communityCards[i];
+                } else {
+                    cardDiv.textContent = '?';
+                    cardDiv.style.background = '#333';
+                    cardDiv.style.color = '#666';
+                }
+                
+                communityCardsDiv.appendChild(cardDiv);
+            }
+            
+            // コントロールボタンの表示制御
+            const currentPlayer = gameState.players[gameState.currentPlayer];
+            const controls = document.getElementById('gameControls');
+            
+            if (currentPlayer && currentPlayer.name === currentUser) {
+                controls.style.display = 'flex';
+            } else {
+                controls.style.display = 'none';
+            }
+        }
+        
+        // ゲームアクション - フォールド
+        function fold() {
+            if (ws && gameState) {
+                ws.send(JSON.stringify({
+                    type: 'gameAction',
+                    action: 'fold',
+                    user: currentUser,
+                    roomId: currentRoom
+                }));
+                
+                // ローカルでゲーム状態を更新（簡略化）
+                const playerIndex = gameState.players.findIndex(p => p.name === currentUser);
+                if (playerIndex !== -1) {
+                    gameState.players[playerIndex].folded = true;
+                    nextPlayer();
+                    updateGameDisplay();
+                }
+            }
+        }
+        
+        // ゲームアクション - コール
+        function call() {
+            if (ws && gameState) {
+                const playerIndex = gameState.players.findIndex(p => p.name === currentUser);
+                if (playerIndex !== -1) {
+                    const player = gameState.players[playerIndex];
+                    const callAmount = gameState.currentBet - player.bet;
+                    
+                    if (player.chips >= callAmount) {
+                        ws.send(JSON.stringify({
+                            type: 'gameAction',
+                            action: 'call',
+                            amount: callAmount,
+                            user: currentUser,
+                            roomId: currentRoom
+                        }));
+                        
+                        // ローカルでゲーム状態を更新
+                        player.bet += callAmount;
+                        player.chips -= callAmount;
+                        gameState.pot += callAmount;
+                        
+                        nextPlayer();
+                        updateGameDisplay();
+                        updateUserChips(player.chips);
+                    }
+                }
+            }
+        }
+        
+        // レイズ入力表示
+        function showRaiseInput() {
+            document.getElementById('raiseInput').style.display = 'flex';
+            document.getElementById('raiseAmount').focus();
+        }
+        
+        // ゲームアクション - レイズ
+        function raise() {
+            const raiseAmount = parseInt(document.getElementById('raiseAmount').value);
+            if (!raiseAmount || raiseAmount < gameState.currentBet) {
+                alert('レイズ額が不正です');
+                return;
+            }
+            
+            if (ws && gameState) {
+                const playerIndex = gameState.players.findIndex(p => p.name === currentUser);
+                if (playerIndex !== -1) {
+                    const player = gameState.players[playerIndex];
+                    const totalBet = raiseAmount;
+                    const additionalBet = totalBet - player.bet;
+                    
+                    if (player.chips >= additionalBet) {
+                        ws.send(JSON.stringify({
+                            type: 'gameAction',
+                            action: 'raise',
+                            amount: totalBet,
+                            user: currentUser,
+                            roomId: currentRoom
+                        }));
+                        
+                        // ローカルでゲーム状態を更新
+                        player.bet = totalBet;
+                        player.chips -= additionalBet;
+                        gameState.pot += additionalBet;
+                        gameState.currentBet = totalBet;
+                        
+                        document.getElementById('raiseInput').style.display = 'none';
+                        document.getElementById('raiseAmount').value = '';
+                        
+                        nextPlayer();
+                        updateGameDisplay();
+                        updateUserChips(player.chips);
+                    }
+                }
+            }
+        }
+        
+        // 次のプレイヤーに移行
+        function nextPlayer() {
+            if (!gameState) return;
+            
+            let nextIndex = (gameState.currentPlayer + 1) % gameState.players.length;
+            let attempts = 0;
+            
+            // フォールドしていないプレイヤーを探す
+            while (gameState.players[nextIndex].folded && attempts < gameState.players.length) {
+                nextIndex = (nextIndex + 1) % gameState.players.length;
+                attempts++;
+            }
+            
+            gameState.currentPlayer = nextIndex;
+            
+            // 全プレイヤーがベットを完了したかチェック
+            const activePlayers = gameState.players.filter(p => !p.folded);
+            const allBetsEqual = activePlayers.every(p => p.bet === gameState.currentBet);
+            
+            if (allBetsEqual && activePlayers.length > 1) {
+                nextPhase();
+            }
+        }
+        
+        // 次のフェーズに移行
+        function nextPhase() {
+            if (!gameState) return;
+            
+            // 全プレイヤーのベットをリセット
+            gameState.players.forEach(player => {
+                player.bet = 0;
+            });
+            gameState.currentBet = 0;
+            
+            switch (gameState.phase) {
+                case 'preflop':
+                    gameState.phase = 'flop';
+                    gameState.communityCards = dealCommunityCards(3);
+                    break;
+                case 'flop':
+                    gameState.phase = 'turn';
+                    gameState.communityCards.push(...dealCommunityCards(1));
+                    break;
+                case 'turn':
+                    gameState.phase = 'river';
+                    gameState.communityCards.push(...dealCommunityCards(1));
+                    break;
+                case 'river':
+                    gameState.phase = 'showdown';
+                    showdown();
+                    return;
+            }
+            
+            gameState.currentPlayer = gameState.dealerPosition;
+            updateGameDisplay();
+        }
+        
+        // コミュニティカードを配る
+        function dealCommunityCards(count) {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            const cards = [];
+            
+            for (let i = 0; i < count; i++) {
+                const suit = suits[Math.floor(Math.random() * suits.length)];
+                const rank = ranks[Math.floor(Math.random() * ranks.length)];
+                cards.push(`${rank}${suit}`);
+            }
+            
+            return cards;
+        }
+        
+        // ショーダウン（簡略化）
+        function showdown() {
+            const activePlayers = gameState.players.filter(p => !p.folded);
+            
+            if (activePlayers.length === 1) {
+                // 一人だけが残った場合
+                const winner = activePlayers[0];
+                winner.chips += gameState.pot;
+                
+                showMessage(document.getElementById('gameStatus'), 
+                    `${winner.name}が勝利！ ${gameState.pot} chipsを獲得！`, 'success');
+                
+                updateUserChips(winner.chips);
+                recordGameResult(winner.name, gameState.pot);
+                
+                setTimeout(() => {
+                    endGame();
+                }, 3000);
+            } else {
+                // 複数プレイヤーが残った場合（簡略化: ランダム勝者）
+                const winner = activePlayers[Math.floor(Math.random() * activePlayers.length)];
+                winner.chips += gameState.pot;
+                
+                showMessage(document.getElementById('gameStatus'), 
+                    `ショーダウン！ ${winner.name}が勝利！ ${gameState.pot} chipsを獲得！`, 'success');
+                
+                updateUserChips(winner.chips);
+                recordGameResult(winner.name, gameState.pot);
+                
+                setTimeout(() => {
+                    endGame();
+                }, 5000);
+            }
+        }
+        
+        // ユーザーチップ更新
+        function updateUserChips(chips) {
+            if (users[currentUser]) {
+                users[currentUser].chips = chips;
+                localStorage.setItem('pokerUsers', JSON.stringify(users));
+                userChips = chips;
+                document.getElementById('gameChips').textContent = chips;
+            }
+        }
+        
+        // ゲーム結果記録
+        function recordGameResult(winner, potAmount) {
+            const gameResult = {
+                timestamp: new Date().toISOString(),
+                roomId: currentRoom,
+                players: gameState.players.map(p => p.name),
+                winner: winner,
+                potAmount: potAmount,
+                finalChips: {}
+            };
+            
+            gameState.players.forEach(player => {
+                gameResult.finalChips[player.name] = player.chips;
+                
+                // プレイヤー統計更新
+                if (users[player.name]) {
+                    users[player.name].gamesPlayed++;
+                    if (player.name === winner) {
+                        users[player.name].wins++;
+                    } else {
+                        users[player.name].losses++;
+                    }
+                }
+            });
+            
+            gameHistory.push(gameResult);
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+            localStorage.setItem('pokerUsers', JSON.stringify(users));
+        }
+        
+        // ゲーム終了
+        function endGame() {
+            gameState = null;
+            showLobby();
+            getRooms();
+        }
+        
+        // ルームから退出
+        function leaveRoom() {
+            if (ws && currentRoom) {
+                ws.send(JSON.stringify({
+                    type: 'leaveRoom',
+                    roomId: currentRoom,
+                    user: currentUser
+                }));
+            }
+        }
+        
+        // ゲーム終了
+        function leaveGame() {
+            if (confirm('本当にゲームを終了しますか？')) {
+                leaveRoom();
+            }
+        }
+        
+        // ログアウト
+        function logout() {
+            if (ws) {
+                ws.close();
+            }
+            currentUser = '';
+            userChips = 10000;
+            gameState = null;
+            currentRoom = '';
+            
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'block';
+            
+            // フォームをリセット
+            document.getElementById('userId').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('loginMessage').innerHTML = '';
+        }
+        
+        // メッセージ表示ヘルパー関数
+        function showMessage(element, message, type) {
+            element.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 3000);
+        }
+        
+        // ゲーム状態更新
+        function updateGameState(message) {
+            const statusDiv = document.getElementById('gameStatus');
+            showMessage(statusDiv, `${message.user}が${message.action}しました`, 'success');
+        }
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            // エンターキーでログイン
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+            
+            // レイズ金額入力でエンターキー
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && document.getElementById('raiseInput').style.display !== 'none') {
+                    raise();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
