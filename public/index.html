@@ -488,14 +488,14 @@
         // データベースのシミュレーション（実際の実装ではサーバーサイドで管理）
         let users = JSON.parse(localStorage.getItem('pokerUsers') || '{}');
         let gameHistory = JSON.parse(localStorage.getItem('gameHistory') || '[]');
-        
+        let globalRooms = JSON.parse(localStorage.getItem('pokerRooms') || '{}');
         // WebSocketシミュレーション（実際の実装ではWebSocketサーバーを使用）
         class MockWebSocket {
             constructor() {
                 this.onopen = null;
                 this.onmessage = null;
                 this.onclose = null;
-                this.rooms = JSON.parse(localStorage.getItem('pokerRooms') || '{}');
+                this.rooms = globalRooms; // グローバル状態を参照
                 setTimeout(() => {
                     if (this.onopen) this.onopen();
                 }, 100);
@@ -533,10 +533,11 @@
                 this.rooms[roomId] = {
                     id: roomId,
                     name: `${message.user}のルーム`,
-                    players: [message.user], // 作成者のみ追加
+                    players: [message.user],
                     maxPlayers: 6,
                     gameState: 'waiting'
                 };
+                globalRooms = this.rooms; // グローバル状態を更新
                 localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
                 
                 if (this.onmessage) {
@@ -552,9 +553,9 @@
             joinRoom(message) {
                 const room = this.rooms[message.roomId];
                 if (room && room.players.length < 6) {
-                    // 既に参加済みのユーザーかチェック
                     if (!room.players.includes(message.user)) {
                         room.players.push(message.user);
+                        globalRooms = this.rooms; // グローバル状態を更新
                         localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
                     }
                     
@@ -566,7 +567,6 @@
                             })
                         });
                         
-                        // 2人以上でゲーム開始（重複チェック後）
                         if (room.players.length >= 2) {
                             setTimeout(() => {
                                 this.startGame(room);
@@ -575,7 +575,6 @@
                     }
                 }
             }
-
             
             leaveRoom(message) {
                 const room = this.rooms[message.roomId];
@@ -584,6 +583,7 @@
                     if (room.players.length === 0) {
                         delete this.rooms[message.roomId];
                     }
+                    globalRooms = this.rooms; // グローバル状態を更新
                     localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
                     
                     if (this.onmessage) {
@@ -595,6 +595,7 @@
                     }
                 }
             }
+        }
             
             getRooms() {
                 if (this.onmessage) {
@@ -720,24 +721,31 @@
         function showLobby() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('lobbyScreen').style.display = 'block';
+            document.getElementById('waitingScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'none';
             document.getElementById('currentUser').textContent = currentUser;
             document.getElementById('userChips').textContent = userChips;
             
-            // WebSocket接続
-            ws = new MockWebSocket();
-            ws.onopen = function() {
-                console.log('WebSocket connected');
+            // 既存のWebSocket接続がない場合のみ新規接続
+            if (!ws) {
+                ws = new MockWebSocket();
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    getRooms();
+                };
+                
+                ws.onmessage = function(event) {
+                    const message = JSON.parse(event.data);
+                    handleWebSocketMessage(message);
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                };
+            } else {
+                // 既存接続がある場合はルーム一覧のみ取得
                 getRooms();
-            };
-            
-            ws.onmessage = function(event) {
-                const message = JSON.parse(event.data);
-                handleWebSocketMessage(message);
-            };
-            
-            ws.onclose = function() {
-                console.log('WebSocket disconnected');
-            };
+            }
         }
         
         // WebSocketメッセージハンドリング
@@ -754,7 +762,11 @@
                     showWaitingScreen(message.room);
                     break;
                 case 'leftRoom':
+                    currentRoom = ''; // currentRoomをクリア
+                    document.getElementById('waitingScreen').style.display = 'none';
+                    document.getElementById('gameScreen').style.display = 'none';
                     showLobby();
+                    getRooms(); // ルーム一覧を更新
                     break;
                 case 'gameStarted':
                     gameState = message.gameState;
@@ -1187,6 +1199,7 @@
                     roomId: currentRoom,
                     user: currentUser
                 }));
+                currentRoom = ''; // currentRoomをクリア
             }
         }
         
