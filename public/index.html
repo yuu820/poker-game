@@ -533,7 +533,7 @@
                 this.rooms[roomId] = {
                     id: roomId,
                     name: `${message.user}のルーム`,
-                    players: [message.user],
+                    players: [message.user], // 作成者のみ追加
                     maxPlayers: 6,
                     gameState: 'waiting'
                 };
@@ -552,8 +552,11 @@
             joinRoom(message) {
                 const room = this.rooms[message.roomId];
                 if (room && room.players.length < 6) {
-                    room.players.push(message.user);
-                    localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
+                    // 既に参加済みのユーザーかチェック
+                    if (!room.players.includes(message.user)) {
+                        room.players.push(message.user);
+                        localStorage.setItem('pokerRooms', JSON.stringify(this.rooms));
+                    }
                     
                     if (this.onmessage) {
                         this.onmessage({
@@ -563,7 +566,7 @@
                             })
                         });
                         
-                        // 2人以上でゲーム開始
+                        // 2人以上でゲーム開始（重複チェック後）
                         if (room.players.length >= 2) {
                             setTimeout(() => {
                                 this.startGame(room);
@@ -572,6 +575,7 @@
                     }
                 }
             }
+
             
             leaveRoom(message) {
                 const room = this.rooms[message.roomId];
@@ -791,6 +795,8 @@
                     type: 'createRoom',
                     user: currentUser
                 }));
+                // createRoom後の自動参加を削除
+                // joinRoom(roomId)の呼び出しを削除
             }
         }
         
